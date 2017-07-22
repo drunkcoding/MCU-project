@@ -1,26 +1,37 @@
+#pragma config FNOSC = FRC           // Oscillator Selection Bits (Fast RC Osc)
+#pragma config FPBDIV = DIV_1          // Peripheral Clock Divisor (Pb_Clk is Sys_Clk/1)
+
 #include "lcd.h"
-#include "gravity.h"
 #include "common.h"
+#include "SDMMC.h"
 
 int main()
 {
-    static short int Ax, Ay, Az;
+    
     MCU_init();
     LCD_init();
-    SPI_Init();
-    ADXL_Init(I2C1);
     clear_screen(1, 1);
-    LCD_disp(1, 1, bmp1);
-    LCD_OTP_Write();
-    while (1)
+    disp_256x160(1, 1, bmp1);
+    //LCD_putcmd(LCD_EXT_CMD1);
+    //LCD_putcmd(LCD_ALL_ON);
+    
+    /*int code=0;
+    initSD();
+    code=initMedia();
+    if (!code)
     {
-        Accel_Read(_DATAX0, &Ax, &Ay, &Az);
+        printf("Initialization failure");   
+        return 0;
     }
-}
-
-#pragma interrupt INT1Handler ipl7 vector 7
-void INT1Handler(void)
-{
-
-    mINTClearIFS0(7);
+    else
+    {
+        code=SD_Rx(START_ADDRESS,N_SECTORS);
+        if(!code)
+        {
+            printf("Read failure");
+            return 0;
+        }
+    }*/
+    while (1) {}
+    return 1;
 }
