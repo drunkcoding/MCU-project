@@ -11,14 +11,17 @@
 void initSD( void)
 {
     //Modified
-    SD_SS2 = 1;           // initially keep the SD card disabled
-    TRISGCLR=0x340;       // Configure SCK2,SDO2,SS2 as output
-    PORTGCLR=0x340;
+    SPI1CONCLR=0x8000;
+    SD_SS1 = 1;           // initially keep the SD card disabled
+    TRISDCLR=0x601;       // Configure SCK1,SDO1,SS1 as output
+    PORTDCLR=0x601;
+    int dummyData=SPI1BUF; //Clear the buffer
+    SPI1STATCLR=0x40;    //Clear any overflow flag
     
     // init the spi module for a slow (safe) clock speed first
-    SPI2CON = 0x0120;   // ON, CKE=1; CKP=0, MASTEN=1, sample middle
-    SPI2BRG = 15;       // SPI baud rate 250kHz
-    SPI2CONSET= 0x8000;    // SPI module on
+    SPI1CON = 0x0120;   // ON,CKE=1. CKP=0, MASTEN=1, sample middle
+    SPI1BRG = 15;       // SPI baud rate 250kHz
+    SPI1CONSET= 0x8000;    // SPI module on
     //Modified ended
     
 }   // initSD
@@ -27,28 +30,31 @@ void initSD( void)
 // send one byte of data and receive one back at the same time
 unsigned char writeSPI( unsigned char b)
 {
-    SPI2BUF = b;                  // write to buffer for TX
-    while( !SPI2STATbits.SPIRBF); // wait transfer complete
-    return SPI2BUF;               // read the received value
+    SPI1BUF = b;                  // write to buffer for TX
+    while( !SPI1STATbits.SPIRBF); // wait transfer complete
+    unsigned char r1=SPI1BUF;
+    return r1;               // read the received value
 }// writeSPI
 
 #define readSPI()   writeSPI( 0xFF)
 #define clockSPI()  writeSPI( 0xFF)
 //Modified
-#define disableSD() SD_SS2 = 1; clockSPI()
-#define enableSD()  SD_SS2 = 0
+#define disableSD() SD_SS1 = 1
+#define enableSD()  SD_SS1 = 0
 //Modified ended
 
 
-int sendSDCmd( unsigned char c, unsigned a)
+unsigned char sendSDCmd( unsigned char c, unsigned int a, unsigned char * response)
 // c    command code
 // a    byte address of data block
+//      or command argument excluding 2-byte CRC+end bit
 {
-    int i, r;
+    int i;
+    unsigned char r;
 
     // enable SD card
     enableSD();
-
+        
     // Send a comand packet (6 bytes)
     // Send MSB first 
     writeSPI( c | 0x40);    // send command 
@@ -57,15 +63,35 @@ int sendSDCmd( unsigned char c, unsigned a)
     writeSPI( a>>8);
     writeSPI( a);           // lsb
     
-    writeSPI( 0x95);        // send CMD0 CRC 
+    //Send CRC
+    if(c==RESET) writeSPI( 0x95);  
+    else if(c==SEND_IF_COND) writeSPI(0x35);
+    else if (c==CRC_ON_OFF) writeSPI(0x91);
+    else if (c==APP_CMD) writeSPI(0x65);
+    else if (c==SD_SEND_OP_COND) writeSPI(0x77);
+    else if (c==READ_OCR) writeSPI(0x7A);
+    else if (c==READ_SINGLE) writeSPI(0xE3);
+    else writeSPI(0x7F);
 
     // now wait for a response, allow for up to 8 bytes delay
-    for( i=0; i<50; i++) 
+    for( i=0; i<8; i++) 
     {
         r = readSPI();      
         if ( r != 0xFF) 
             break;
     }
+    
+    //Read extra 4 bytes in response R7 and R3 for CMD8 and CMD58 respectively
+    if(c==SEND_IF_COND||c==READ_OCR)
+    {
+        for (i=3;i>=0;i--)
+        {
+            *(response+i)=readSPI();
+        }
+    }
+    
+    disableSD();clockSPI();// disable SD card
+    
     return r;         
 
 /* return response
@@ -88,43 +114,83 @@ other codes:
 
 
 int initMedia( void)
-// returns 0 if successful
-//          E_COMMAND_ACK   failed to acknowledge reset command
-//          E_INIT_TIMEOUT  failed to initialize
+// returns 1 if successful
+// otherwise,
+//      E_COMMAND_ACK   failed to acknowledge reset command
+//      E_INIT_TIMEOUT  failed to initialize
 {
-    int i, r;
+    int i;
+    unsigned char r;
+    unsigned char response[4];
 
-    // 1. with the card NOT selected     
-    disableSD(); 
+    //with the card NOT selected     
+    disableSD(); clockSPI();
 
-    // 2. send 80 clock cycles start up
-    for ( i=0; i<10; i++)
+    //send 80 clock cycles start up
+    for ( i=0; i<20; i++)
         clockSPI();
 
-    // 3. now select the card
-    enableSD();
+    //send a single RESET command
+    r = sendSDCmd( RESET, 0, response); 
+     if ( r != 1)    // must return Idle
+        return 0;   // Reset failed
 
-    // 4. send a single RESET command
-    r = sendSDCmd( RESET, 0); disableSD();
-    if ( r != 1)                // must return Idle
-        return E_COMMAND_ACK;   // comand rejected
-
-    // 5. send repeatedly INIT until Idle terminates
+    //send interface condition command
+    //Voltage range 2.7~3.6V
+    //Check pattern 0x77
+    r = sendSDCmd(SEND_IF_COND,0x00000177,response);
+    
+    //Check CMD8 response
+    if (r==0x09) return 0;
+    else if (r==0x01) //Spec 2.0 card
+    {
+        if(*(response+1)!=1||*(response)!=0x77)
+        {
+            return 0;
+        }
+    }
+    else if (r==0x04){}//Spec 1.0 card
+    else return 0;
+   
+    //send repeatedly INIT until Idle terminates
+    //CMD55+ACMD41
     for (i=0; i<INIT_TIMEOUT; i++) 
     {
-        r = sendSDCmd(INIT, 0); disableSD();
-        if ( !r) 
+        r=sendSDCmd(APP_CMD,0,response);
+        if(r==1)
+        {
+            //Activate SDHC high-capacity card
+            r=sendSDCmd(SD_SEND_OP_COND,0x40000000,response); 
+            if (!r) 
             break; 
+        }
     } 
     if ( i == INIT_TIMEOUT)   
-        return E_INIT_TIMEOUT;  // init timed out 
-
-    // 6. increase speed 
-    SPI2CONCLR = 0x8000;        // disable the SPI2 module
-    SPI2BRG = 0;                // Baud rate changed to 4MHz, max with FPB=8MHz
-    SPI2CONSET = 0x8000;           // re-enable the SPI2 module
+        return 0;  // init timed out 
     
-    return 0;           
+    //read CCS to confirm high-capacity is activated
+    //CMD58
+    //r=sendSDCmd(READ_OCR,0,response);
+    for(i=0;i<INIT_TIMEOUT;i++)
+    {
+        r=sendSDCmd(READ_OCR,0,response);
+            if(r==0)
+            {
+                if(*(response+3)==0xc0) break;
+            }
+    }
+    if(i==INIT_TIMEOUT)
+    {
+        return 0;
+    }
+
+    //increase speed 
+    SPI1CONCLR = 0x8000;        // disable the SPI1 module
+    SPI1BRG = 0;                // Baud rate changed to 4MHz, max with FPB=8MHz
+    SPI1CONSET = 0x8000;           // re-enable the SPI1 module
+    
+    
+    return 1;           
 } // init media
 
 
@@ -134,20 +200,22 @@ int readSECTOR( unsigned int a, char *p)
 // returns  TRUE if successful
 {
     int r, i;
+    unsigned char response[4];
         
-    // 1. send READ command
-    r = sendSDCmd( READ_SINGLE, ( a << 9));
+    // send READ command
+    r = sendSDCmd( READ_SINGLE, a, response);
     if ( r == 0)    // check if command was accepted
     {  
-        // 2. wait for a response
+        enableSD();
+        //wait for the start block token
         for( i=0; i<RX_TIMEOUT; i++)
         {
-            r = readSPI();     
+            r = readSPI();  
             if ( r == DATA_START) 
                 break;
         } 
 
-        // 3. if it did not timeout, read 512 byte of data
+        //if it did not timeout, read 512 byte of data
         if ( i != RX_TIMEOUT)
         {
             i = 512;
@@ -155,16 +223,22 @@ int readSECTOR( unsigned int a, char *p)
                 *p++ = readSPI();
             } while (--i>0);
 
-            // 4. ignore CRC
+            // Read two CRC
             readSPI();
             readSPI();
 
         } // data arrived
-
     } // command accepted
+    else //CRC error 
+    {
+        if(r==0x01)
+        {
+            return 0;
+        }
+    }
 
-    // 5. remember to disable the card
-    disableSD();
+    //remember to disable the card
+    disableSD();clockSPI();
 
     return ( r == DATA_START);    // return TRUE if successful
 } // readSECTOR
@@ -176,14 +250,16 @@ int writeSECTOR( unsigned int a, char *p)
 // returns  TRUE if successful
 {
     unsigned r, i;
-
+    unsigned char response[4];
+   
+    
     //NO Write Protect pin available on current module 
     // 0. check Write Protect 
     /*if ( getWP())
         return FAIL;*/
     
     // 1. send WRITE command
-    r = sendSDCmd( WRITE_SINGLE, ( a << 9));
+    r = sendSDCmd( WRITE_SINGLE, a, response);
     if ( r == 0)    // check if command was accepted
     {  
 
@@ -219,7 +295,7 @@ int writeSECTOR( unsigned int a, char *p)
     } //Write command accepted
 
     // 6. disable the card
-    disableSD();
+    disableSD();clockSPI();
 
     return r;      // return TRUE if successful
 
@@ -231,13 +307,14 @@ int SD_Rx(unsigned int addr,int numSector)
 {
     char  SD_buffer[SECTOR_SIZE];
 
-    int i;      
+    int i,r;      
 
     // Read all sectors of the mp3   
     for( i=0; i<numSector; i++)
     {
         // read back one block at a time
-        if (!readSECTOR( addr+i, SD_buffer))
+        r=readSECTOR( addr+i, SD_buffer);
+        if (!r)
         {   // reading failed
             printf("Read failure");
             return 0;

@@ -22,7 +22,7 @@ void LCD_init()
     LCD_putchar(0X00);             // XS=0
     LCD_putchar(0Xff);             // XE=256 ff
     LCD_putcmd(LCD_SCAN_SET);      //Data scan direction
-    LCD_putchar(0x00);             //MV Page direction //Modified
+    LCD_putchar(0x05);             //MV Page direction //Modified
                                    //MX.MY=Normal
                                    //LCD_putchar(0xA6) //Removed
     LCD_putcmd(LCD_LOW_TOP);  //0x0C LSB on top of each column
@@ -104,7 +104,7 @@ void LCD_address(int x, int y, int x_total, int y_total)
     LCD_putchar(x + x_total - 1);
     LCD_putcmd(LCD_PAGE_ADDR_SET); //Set Page Address
     LCD_putchar(y);
-    LCD_putchar(y + y_total - 1);
+    LCD_putchar(y + y_total-1);
     LCD_putcmd(LCD_EXT_CMD1);
     LCD_putcmd(LCD_WRITE_EN);
 }
@@ -112,9 +112,7 @@ void LCD_address(int x, int y, int x_total, int y_total)
 void clear_screen(int x, int y)
 {
     int i, j;
-    //LCD_address(x, y, 172, 13);
-    LCD_putcmd(LCD_EXT_CMD1);
-    LCD_putcmd(LCD_WRITE_EN);
+    LCD_address(x, y, 256, 20);
     for (i = 0; i < 20; i++)
     {
         for (j = 0; j < 256; j++)
@@ -127,15 +125,26 @@ void clear_screen(int x, int y)
 void disp_256x160(int x, int y, char *dp)
 {
     int i, j;
-    LCD_address(x, y, 172, 13);
-    LCD_putcmd(LCD_EXT_CMD1);
-    LCD_putcmd(LCD_WRITE_EN);
-    for (i = 0; i < 13; i++)
+    LCD_address(x, y, 256, 20);
+    for (i = 0; i < 20; i++)
     {
-        for (j = 0; j < 172; j++)
+        for (j = 0; j < 256; j++)
         {
             LCD_putchar(*dp);
             dp++;
+        }
+    }
+}
+
+void disp_modify(int x, int y)
+{
+    int i,j;
+    LCD_address(x,y,10,20);
+    for (i=0;i<2;i++)
+    {
+        for (j=0;j<30;j++)
+        {
+            LCD_putchar(0x00);
         }
     }
 }
