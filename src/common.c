@@ -1,14 +1,17 @@
 #include "common.h"
 
+//Max 65ms
 void delay_ms(int i)
 {
-    OpenTimer1(T1_ON | T1_PS_1_64, i * MS_SCALE / 64 - 1);
+    OpenTimer1(T1_ON | T1_PS_1_8, i * MS_SCALE / 8 - 1);
     INTClearFlag(INT_T1);
     IFS0bits.T1IF = 0b0;
     while (!IFS0bits.T1IF)
         ;
     CloseTimer1();
 }
+
+//Max 8ms
 void delay_us(int i)
 {
     OpenTimer1(T1_ON, i * US_SCALE - 1);
