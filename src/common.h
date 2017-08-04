@@ -49,5 +49,6 @@ typedef unsigned char uint8_t;
 void delay_ms(int i);
 void delay_us(int i);
 void MCU_init();
+void ADC_init();
 void Timer1_init();
 #endif
