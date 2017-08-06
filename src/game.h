@@ -15,4 +15,4 @@ static int DispCnt = 0;
 void AccBall(double AccResult[], double AccOrigin[]);
 void SSD(int n);
 void InitDispTimer();
-void Move(int &column, int &page);
+//void Move(int &column, int &page);

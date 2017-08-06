@@ -7,36 +7,62 @@ void Timer45Handler(void)
     IFS0bits.T5IF = 0b0;
 }
 
-#pragma interrupt Timer3Handler ipl6 vector 12
+#pragma interrupt Timer3Handler ipl4 vector 12
 void Timer3Handler(void)
 {
     static cnt = 0;
     switch (cnt)
     {
-    case 0:
-        PORTA = 0b0001;
+    case 3:
+        PORTC = 0b00010;
         SSD(DispCnt % 10);
         break;
-    case 1:
-        PORTA = 0b0010;
+    case 2:
+        PORTC = 0b00100;
         SSD((DispCnt / 10) % 10);
         break;
-    case 2:
-        PORTA = 0b0100;
+    case 1:
+        PORTC = 0b01000;
         SSD((DispCnt / 100) % 10);
         break;
-    case 3:
-        PORTA = 0b1000;
+    case 0:
+        PORTC = 0b10000;
         SSD((DispCnt / 1000) % 10);
         break;
     default:
-        PORTA = 0b0001;
+        PORTC = 0b00010;
         break;
     }
     cnt = (cnt + 1) % 4;
     IFS0bits.T3IF = 0b0;
 }
 
+void SSD(int n) //seven-segment diaplay 1 is on, 0 is off for each segment
+{
+    PORTClearBits(IOPORT_A, BIT_0 | BIT_1 | BIT_4 | BIT_5 | BIT_6 | BIT_7 | BIT_10);
+    if (n == 0)
+        PORTSetBits(IOPORT_A, BIT_0 | BIT_1 | BIT_4 | BIT_5 | BIT_6 | BIT_7);
+    if (n == 1)
+        PORTSetBits(IOPORT_A, BIT_0 | BIT_1);
+    if (n == 2)
+        PORTSetBits(IOPORT_A, BIT_0 | BIT_1 | BIT_5 | BIT_6 | BIT_10);
+    if (n == 3)
+        PORTSetBits(IOPORT_A, BIT_0 | BIT_1 | BIT_4 | BIT_5 | BIT_10);
+    if (n == 4)
+        PORTSetBits(IOPORT_A, BIT_1 | BIT_4 | BIT_7 | BIT_10);
+    if (n == 5)
+        PORTSetBits(IOPORT_A, BIT_0 | BIT_4 | BIT_5 | BIT_7 | BIT_10);
+    if (n == 6)
+        PORTSetBits(IOPORT_A, BIT_0 | BIT_4 | BIT_5 | BIT_6 | BIT_7 | BIT_10);
+    if (n == 7)
+        PORTSetBits(IOPORT_A, BIT_0 | BIT_1 | BIT_4);
+    if (n == 8)
+        PORTSetBits(IOPORT_A, BIT_0 | BIT_1 | BIT_4 | BIT_5 | BIT_6 | BIT_7 | BIT_10);
+    if (n == 9)
+        PORTSetBits(IOPORT_A, BIT_0 | BIT_1 | BIT_4 | BIT_5 | BIT_7 | BIT_10);
+}
+
+/*
 void SSD(int n) //seven-segment diaplay 1 is on, 0 is off for each segment
 {
     PORTClearBits(IOPORT_B, BIT_0 | BIT_1 | BIT_2 | BIT_3 | BIT_4 | BIT_5 | BIT_6);
@@ -61,7 +87,7 @@ void SSD(int n) //seven-segment diaplay 1 is on, 0 is off for each segment
     if (n == 9)
         PORTSetBits(IOPORT_B, BIT_0 | BIT_1 | BIT_2 | BIT_3 | BIT_5 | BIT_6);
 }
-
+*/
 void AccBall(double AccResult[], double AccOrigin[])
 {
     double ang_x, ang_y, ang_z, Accx, Accy, Accz;
@@ -105,12 +131,12 @@ void InitDispTimer()
     TMR3 = 0x0;
     PR3 = MS_SCALE - 1;
     IFS0bits.T3IF = 0b0;
-    IPC3bits.T3IP = 0b110;
+    IPC3bits.T3IP = 0b100;
     IPC3bits.T3IS = 0b01;
     IEC0bits.T3IE = 0b1;
     T3CONbits.ON = 0b1;
 }
-
+/*
 void Move(int &column, int &page)
 {
     IEC1bits.AD1IE = 0b1; // Open ADC
@@ -132,3 +158,4 @@ void Move(int &column, int &page)
     if (page < 1)
         page = 1;
 }
+*/

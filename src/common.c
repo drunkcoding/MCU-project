@@ -25,10 +25,15 @@ void MCU_init()
 {
     INTEnableSystemMultiVectoredInt();
     /* setup I/O ports to connect to the LCD module */
-    PORTSetPinsDigitalOut(IOPORT_D, BIT_0 | BIT_1 | BIT_2 | BIT_3);                                 // BIT_0 = E, BIT_1 = CS, BIT_2 = RESET, BIT_3 = RS
+    PORTSetPinsDigitalOut(IOPORT_D, BIT_0 | BIT_1 | BIT_2 | BIT_3 | BIT_4);                         // BIT_0 = E, BIT_1 = CS, BIT_2 = RESET, BIT_3 = RS, BIT_4 = 7Segment
     PORTSetPinsDigitalOut(IOPORT_E, BIT_0 | BIT_1 | BIT_2 | BIT_3 | BIT_4 | BIT_5 | BIT_6 | BIT_7); // BIT_0-BIT_7 = D0-D7
-    PORTClearBits(IOPORT_D, BIT_0 | BIT_1 | BIT_2 | BIT_3);
+    PORTClearBits(IOPORT_D, BIT_0 | BIT_1 | BIT_2 | BIT_3 | BIT_4);
     PORTClearBits(IOPORT_E, BIT_0 | BIT_1 | BIT_2 | BIT_3 | BIT_4 | BIT_5 | BIT_6 | BIT_7);
+    /*setup I/O ports to connect to the 7-segment display*/
+    PORTSetPinsDigitalOut(IOPORT_C, BIT_1 | BIT_2 | BIT_3 | BIT_4);                          // D1-D4
+    PORTSetPinsDigitalOut(IOPORT_A, BIT_0 | BIT_1 | BIT_4 | BIT_5 | BIT_6 | BIT_7 | BIT_10); //A-G
+    PORTClearBits(IOPORT_C, BIT_1 | BIT_2 | BIT_3 | BIT_4);
+    PORTClearBits(IOPORT_A, BIT_0 | BIT_1 | BIT_4 | BIT_5 | BIT_6 | BIT_7 | BIT_10);
     //Set PIN AN0/RB0, AN1/RB1, AN2/RB2
     TRISBSET = 0x0007;
     AD1PCFG = 0xfff8;

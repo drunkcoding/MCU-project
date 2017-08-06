@@ -76,6 +76,7 @@ int main()
             bmp2[i] = 0x00;
     MCU_init();
     ADC_init();
+    //InitDispTimer();
     //Enable to show maze 1
     LCD_init();
     clear_screen(0, 1);
@@ -84,6 +85,7 @@ int main()
         for (j = 0; j < TOTAL_PAGE; j++)
             BallDisp[i * TOTAL_PAGE + j] = ball_thin[i * TOTAL_PAGE + j] | bmp1[(column + i) * 20 + page - 1 + j];
     disp_modify(column, page, BallDisp);
+    PORTSetBits(IOPORT_D, BIT_4);
     while (1)
     {
         IEC1bits.AD1IE = 0b1; // Open ADC
@@ -131,6 +133,7 @@ int main()
         }
         if (flag == 1)
         {
+            PORTClearBits(IOPORT_D, BIT_4);
             column = (255 - x_origin);
             page = y_origin;
             clear_screen(0, 1);
@@ -139,6 +142,7 @@ int main()
                 for (j = 0; j < TOTAL_PAGE; j++)
                     BallDisp[i * TOTAL_PAGE + j] = ball_thin[i * TOTAL_PAGE + j] | bmp1[(column + i) * 20 + page - 1 + j];
             disp_modify(column, page, BallDisp);
+            PORTSetBits(IOPORT_D, BIT_4);
             continue;
         }
         for (i = 0; i < TOTAL_COLM; i++)
@@ -147,7 +151,7 @@ int main()
         disp_modify(column_old, page_old, Recover);
         //delay_ms(10);
         disp_modify(column, page, BallDisp);
-        delay_ms(40);
+        delay_ms(30);
     }
     return 1;
 }
