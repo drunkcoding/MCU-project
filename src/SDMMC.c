@@ -6,7 +6,7 @@
 ** 
 */
 
-#include "sdmmc.h"
+#include "SDMMC.h"
 
 void initSD( void)
 {
@@ -20,7 +20,8 @@ void initSD( void)
     
     // init the spi module for a slow (safe) clock speed first
     SPI1CON = 0x0120;   // ON,CKE=1. CKP=0, MASTEN=1, sample middle
-    SPI1BRG = 15;       // SPI baud rate 250kHz
+    SPI1BRG = 15;       // SPI baud rate 250kHz at FPB=8MHz
+    //SPI1BRG=255;          // SPI baud rate 156kHz at FPB=80MHz
     SPI1CONSET= 0x8000;    // SPI module on
     //Modified ended
     
@@ -31,6 +32,7 @@ void initSD( void)
 unsigned char writeSPI( unsigned char b)
 {
     SPI1BUF = b;                  // write to buffer for TX
+
     while( !SPI1STATbits.SPIRBF); // wait transfer complete
     unsigned char r1=SPI1BUF;
     return r1;               // read the received value
@@ -186,7 +188,8 @@ int initMedia( void)
 
     //increase speed 
     SPI1CONCLR = 0x8000;        // disable the SPI1 module
-    SPI1BRG = 0;                // Baud rate changed to 4MHz, max with FPB=8MHz
+    SPI1BRG = 0;                // Baud rate changed to PBLCK/2, maximum
+                                // SD possibly accepts a maximum of 10MHz
     SPI1CONSET = 0x8000;           // re-enable the SPI1 module
     
     
@@ -195,7 +198,7 @@ int initMedia( void)
 
 
 int readSECTOR( unsigned int a, char *p)
-// a        Logic block address of sector requested
+// a       Physical block address of sector requested
 // p        pointer to sector buffer
 // returns  TRUE if successful
 {
@@ -245,7 +248,7 @@ int readSECTOR( unsigned int a, char *p)
 
 
 int writeSECTOR( unsigned int a, char *p)
-// a        Logic block address of sector requested
+// a        Physical block address of sector requested
 // p        pointer to sector buffer
 // returns  TRUE if successful
 {
@@ -301,11 +304,13 @@ int writeSECTOR( unsigned int a, char *p)
 
 } // writeSECTOR
 
-int SD_Rx(unsigned int addr,int numSector)
-// addr        Logic block address of sector requested
+//This function is not useful because PIC32MX795F512L has only 128K data RAM. 
+//Therefore, it is impossible to read back the whole song at one time.
+int SD_Rx(unsigned int addr,int numSector,char * SD_Buffer)
+// addr    Physical block address of sector requested
 // returns TRUE if successful
 {
-    char  SD_buffer[SECTOR_SIZE];
+    //char  SD_buffer[SECTOR_SIZE];
 
     int i,r;      
 
@@ -313,7 +318,7 @@ int SD_Rx(unsigned int addr,int numSector)
     for( i=0; i<numSector; i++)
     {
         // read back one block at a time
-        r=readSECTOR( addr+i, SD_buffer);
+        r=readSECTOR( addr+i, SD_Buffer);
         if (!r)
         {   // reading failed
             printf("Read failure");

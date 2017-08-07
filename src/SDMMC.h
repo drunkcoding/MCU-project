@@ -6,15 +6,25 @@
 **
 */
 
-#include <plib.h>
+#ifndef SDMMC_H
+#define SDMMC_H
+
+#ifdef	__cplusplus
+extern "C" {
+#endif
+    
+#include "common.h"
 
 //File address and sector definition
-#define START_ADDRESS       16640        //Use physical block address
+#define START_ADDRESS       35264        //Use physical block address
                                          //Use Winhex to find address
-                                         //Start block address 16640
+                                         //Start block address 16640 for 272kbps
+                                         //Start block address 31844 for 128kbps
                                          
                                          
-#define N_SECTORS            15360       // number of sectors 
+#define N_SECTORS            870        // number of sectors 
+                                         // 272kbps file has 15360 sectors
+                                         // 128kps file has 3465
 #define SECTOR_SIZE          512         // logic block(sector) size SDHC
 
 // Init ERROR code definitions
@@ -35,7 +45,7 @@
 #define SD_SS2 PORTGbits.RG9
  */
 
-//Timeout periods
+//Timeout periods 
 #define INIT_TIMEOUT       10000  
 #define RX_TIMEOUT       6250
 #define TX_TIMEOUT       62500
@@ -63,9 +73,13 @@ int readSECTOR ( unsigned int a , char * p);  // reads a block of data
 int writeSECTOR( unsigned int a, char * p);  // writes a block of data
 unsigned char writeSPI( unsigned char b); //Send and receive one byte of data
 unsigned char sendSDCmd( unsigned char c, unsigned int a,unsigned char *response); //send a command to SD
-
-
-int SD_Rx(unsigned int addr,int numSector);
+int SD_Rx(unsigned int addr,int numSector,char * SD_Buffer);
 
 //int getCD();            // chech card presence
 //int getWP();            // check write protection tab
+
+#ifdef	__cplusplus
+}
+#endif
+
+#endif //SDMMC_H
